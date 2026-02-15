@@ -23,6 +23,7 @@ export default function CatalogsPage() {
   const [viewerLoading, setViewerLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [pageInput, setPageInput] = useState('1');
   const [zoom, setZoom] = useState(1);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pdfjsRef = useRef<any>(null);
@@ -88,6 +89,10 @@ export default function CatalogsPage() {
     void render();
   }, [pdfDoc, currentPage, zoom]);
 
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
+
   const buyPlan = async (plan: 'DAY' | 'WEEK') => {
     if (!auth.accessToken) {
       return;
@@ -140,6 +145,7 @@ export default function CatalogsPage() {
 
       setPdfDoc(doc);
       setCurrentPage(1);
+      setPageInput('1');
       setTotalPages(doc.numPages);
       setZoom(1);
       setActiveCatalogTitle(catalog.title);
@@ -148,6 +154,22 @@ export default function CatalogsPage() {
     } finally {
       setViewerLoading(false);
     }
+  };
+
+  const goToPage = () => {
+    if (!pdfDoc || totalPages <= 0) {
+      return;
+    }
+
+    const parsed = Number.parseInt(pageInput, 10);
+    if (!Number.isFinite(parsed)) {
+      setPageInput(String(currentPage));
+      return;
+    }
+
+    const clamped = Math.min(Math.max(parsed, 1), totalPages);
+    setCurrentPage(clamped);
+    setPageInput(String(clamped));
   };
 
   return (
@@ -222,9 +244,34 @@ export default function CatalogsPage() {
               >
                 Назад
               </button>
-              <span className="min-w-20 text-center text-slate-700">
-                {totalPages ? `${currentPage} / ${totalPages}` : '-'}
-              </span>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={Math.max(totalPages, 1)}
+                  value={pageInput}
+                  onChange={(e) => setPageInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      goToPage();
+                    }
+                  }}
+                  disabled={!pdfDoc}
+                  className="w-20 rounded border border-slate-300 px-2 py-1 text-center disabled:opacity-40"
+                />
+                <button
+                  type="button"
+                  disabled={!pdfDoc}
+                  onClick={goToPage}
+                  className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
+                >
+                  Перейти
+                </button>
+                <span className="min-w-16 text-center text-slate-700">/ {totalPages || '-'}</span>
+              </div>
+
               <button
                 type="button"
                 disabled={!pdfDoc || currentPage >= totalPages}
